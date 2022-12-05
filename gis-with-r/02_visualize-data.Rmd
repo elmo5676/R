@@ -1,0 +1,74 @@
+---
+title: "Visualizing data with ggplot"
+output: html_document
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyverse)  # For ggplot, dplyr, and friends
+
+mpg <- read_csv("data/mpg.csv")  # Load data
+```
+
+## Figuring out what's in the data
+
+```{r}
+mpg
+```
+
+## Your Turn 1
+
+Run the code on the slide to make a graph. Pay strict attention to spelling, capitalization, and parentheses!
+
+```{r}
+
+```
+
+## Your Turn 2
+
+Add `color`, `size`, `alpha`, or `shape` aesthetics to your graph. Experiment.  
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+## Your Turn 3
+
+Predict what this code will do. Then run it.
+
+```{r}
+ggplot(mpg) + 
+  geom_point(aes(displ, hwy)) +
+  geom_smooth(aes(displ, hwy))
+```
+
+---
+
+# Fancy completed plot from slides
+
+```{r message=FALSE}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy, color = drv)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  scale_color_viridis_d() +
+  facet_wrap(vars(drv), ncol = 1) +
+  labs(x = "Displacement", y = "Highway MPG",
+       color = "Drive", 
+       title = "Heavier cars get lower mileage",
+       subtitle = "Displacement indicates weight(?)",
+       caption = "I know nothing about cars") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "bold"))
+```
+
+---
+
+# Takeaways
+
+You can use this code template to any kind of graph with **ggplot2**.
+
+```{r eval=FALSE}
+ggplot(data = <DATA>) +
+  <GEOM_FUNCTION>(mapping = aes(<MAPPINGS>))
+```

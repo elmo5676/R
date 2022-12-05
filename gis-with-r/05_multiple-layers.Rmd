@@ -1,0 +1,248 @@
+---
+title: "Plotting multiple GIS layers"
+output: html_document
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(sf)
+
+# Download "Admin 0 – Countries" from
+# https://www.naturalearthdata.com/downloads/110m-cultural-vectors/
+world_map <- read_sf("data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
+
+# Download cb_2018_us_state_20m.zip under "States" from
+# https://www.census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html
+us_states <- read_sf("data/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+
+only_georgia <- us_states %>% 
+  filter(NAME == "Georgia")
+
+# Download cb_2018_us_county_5m.zip under "County" from
+# https://www.census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html
+us_counties <- read_sf("data/cb_2018_us_county_5m/cb_2018_us_county_5m.shp")
+
+# Download "Admin 1 – States, Provinces" from
+# https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+us_states_hires <- read_sf("data/ne_10m_admin_1_states_provinces/ne_10m_admin_1_states_provinces.shp")
+
+only_georgia_high <- us_states_hires %>% 
+  filter(iso_3166_2 == "US-GA")
+
+# Download "Rivers + lake centerlines" from
+# https://www.naturalearthdata.com/downloads/10m-physical-vectors/
+rivers_global <- read_sf("data/ne_10m_rivers_lake_centerlines/ne_10m_rivers_lake_centerlines.shp")
+
+# Download "Rivers + lake centerlines, North America supplement" from
+# https://www.naturalearthdata.com/downloads/10m-physical-vectors/
+rivers_na <- read_sf("data/ne_10m_rivers_north_america/ne_10m_rivers_north_america.shp")
+
+# Download "Lakes + Reservoirs" from
+# https://www.naturalearthdata.com/downloads/10m-physical-vectors/
+lakes <- read_sf("data/ne_10m_lakes/ne_10m_lakes.shp")
+
+# Download from https://data.georgiaspatial.org/index.asp?body=preview&dataId=41516
+# after creating an account and logging in
+ga_schools <- read_sf("data/ga_schools/ga_schools.shp")
+```
+
+## Plotting multiple shapefile layers
+
+The state shapefiles from the Census Bureau only include state boundaries. If we want to see counties in Georgia, we need to download and load the Census's county shapefiles (which we did above). We can then add a second `geom_sf()` layer for the counties.
+
+First we need to filter the county data to only include Georgia counties. The counties data doesn't include a column with the state name or state abbreviation, but it does include a column named `STATEFP`, which is the [state FIPS code](https://en.wikipedia.org/wiki/Federal_Information_Processing_Standard_state_code). Looking at `lower_48` we can see that the state FIPS code for Georgia is 13, so we use that to filter.
+
+```{r}
+ga_counties <- us_counties %>% 
+  filter(STATEFP == 13)
+```
+
+Now we can plot just the counties:
+
+```{r}
+ggplot() +
+  geom_sf(data = ga_counties) +
+  theme_void()
+```
+
+Technically we can just draw the county boundaries instead of layer the state boundary + the counties, since the borders of the counties make up the border of the state. But there's an advantage to including both: we can use different aesthetics on each, like adding a thicker border on the state:
+
+```{r}
+ggplot() +
+  geom_sf(data = only_georgia_high, color = "purple", size = 3) +
+  geom_sf(data = ga_counties, fill = "darkgreen", color = "white") +
+  theme_void()
+```
+
+It's also useful if we want to only show some counties, like metropolitan Atlanta:
+
+```{r}
+atl_counties <- ga_counties %>% 
+  filter(NAME %in% c("Cherokee", "Clayton", "Cobb", "DeKalb", "Douglas",
+                     "Fayette", "Fulton", "Gwinnett", "Henry", "Rockdale"))
+
+ggplot() +
+  geom_sf(data = only_georgia_high, fill = "purple") +
+  geom_sf(data = atl_counties, fill = "darkgreen", color = "white") +
+  theme_void()
+```
+
+### Your turn
+
+Choose a state other than Georgia and make a similar plot—make a smaller dataset of 1+ counties, plot the entire state, and then plot the extracted counties. Adjust the color, fill, and size as wanted.
+
+INSERT CHUNK HERE
+
+
+## Plotting multiple shapefile layers when some are bigger than the parent shape
+
+So far we've been able to filter out states and counties that we don't want to plot using `filter()`, which works because the shapefiles have geometry data for each state or county. But what if you're plotting stuff that doesn't follow state or county boundaries, like freeways, roads, rivers, or lakes? 
+
+At the beginning we loaded a shapefile for all large and small rivers in the US. Look at the first few rows of `rivers_na`:
+
+```{r head-river-small}
+head(rivers_na)
+```
+
+The first row is the whole Colorado river, which flows through seven states. We can't just use `filter()` to only select some parts of it based on states.
+
+Here's what happens if we combine our Georgia map with rivers and lakes:
+
+```{r ga-rivers-bad}
+ggplot() +
+  geom_sf(data = only_georgia, fill = "purple") +
+  geom_sf(data = rivers_na) +
+  theme_void()
+```
+
+It plots Georgia, and it's filled with purple, but it also plots every single river in North America. Oops.
+
+We need to do a little GIS work to basically use `only_georgia` as a cookie cutter and keep only the rivers that are contained in the `only_georgia` boundaries. Fortunately, there's a function in the **sf** package that does this: `st_intersection()`. Feed it two shapefile datasets and it will select the parts of the second that fall within the boundaries of the first:
+
+```{r ga-cut-rivers-nope, error=TRUE}
+ga_rivers_na <- st_intersection(only_georgia, rivers_na)
+```
+
+Oh no! An error! It's complaining that the reference systems used in these two datasets don't match. We can check the CRS with `st_crs()`:
+
+```{r check-crs}
+st_crs(only_georgia)
+st_crs(rivers_na)
+```
+
+The Georgia map uses EPSG:4269 ([or NAD83](https://epsg.io/4269)), while the rivers map uses EPSG:4326 (or [the GPS system of latitude and longitude](https://epsg.io/4326)). We need to convert one of them to make them match. It doesn't matter which one.
+
+```{r ga-cut-rivers-yep}
+only_georgia_4326 <- only_georgia %>% 
+  st_transform(crs = st_crs("EPSG:4326"))
+
+ga_rivers_na <- st_intersection(only_georgia_4326, rivers_na)
+```
+
+You'll get an ominous warning, but you should be okay—it's just because flattening globes into flat planes is hard, and the cutting [might not be 100% accurate](https://github.com/r-spatial/sf/issues/493), but it'll be close enough for our mapping purposes.
+
+Now we can plot our state shape and the truncated rivers:
+
+```{r ga-rivers-good}
+ggplot() +
+  geom_sf(data = only_georgia, fill = "purple") +
+  geom_sf(data = ga_rivers_na) +
+  theme_void()
+```
+
+Hey! It worked! Let's put all the rivers and lakes on at once and make it a little more artsy. We'll use the high resolution Georgia map too, which conveniently already matches the CRS of the rivers and lakes:
+
+```{r ga-all-water, warning=FALSE, message=FALSE, fig.width=10, fig.height=6}
+ga_rivers_na <- st_intersection(only_georgia_high, rivers_na)
+ga_rivers_global <- st_intersection(only_georgia_high, rivers_global)
+
+# sf v1.0 changed how it handles shapefiles with spherical elements, which
+# apparently the lakes data uses. Currently when using st_intersection() and
+# other GIS-related functions, it breaks. This can be fixed by feeding the lakes
+# data to st_make_valid(), which does something fancy behind the scenes to make
+# it work. See this: https://github.com/r-spatial/sf/issues/1649#issuecomment-853279986
+ga_lakes <- st_intersection(only_georgia_high, st_make_valid(lakes))
+
+ggplot() +
+  geom_sf(data = only_georgia_high, 
+          color = "black", size = 0.1, fill = "black") +
+  geom_sf(data = ga_rivers_global, size = 0.3, color = "grey80") +
+  geom_sf(data = ga_rivers_na, size = 0.15, color = "grey80") +
+  geom_sf(data = ga_lakes, size = 0.3, fill = "grey80", color = NA) +
+  theme_void()
+```
+
+Heck yeah. That's a great map.
+
+### Your turn
+
+Make an artsy map of rivers and bodies of water for a state other than Georgia
+
+INSERT CHUNK HERE
+
+
+## Plotting schools in Georgia
+
+Shapefiles are not limited to just lines and areas—they can also contain points. I made a free account at the Georgia GIS Clearinghouse, searched for "schools" and found a shapefile of all the K–12 schools in 2009. [This is the direct link to the page](https://data.georgiaspatial.org/index.asp?body=preview&dataId=41516), but it only works if you're logged in to their system. [This is the official metadata for the shapefile](https://data.georgiaspatial.org/data/statewide/other/schools_2009.html), which you can see if you're not logged in, but you can't download anything. It's a bad system and other states are a lot better at offering their GIS data (like, [here's a shapefile of all of Utah's schools and libraries](https://gis.utah.gov/data/society/schools-libraries/) as of 2017, publicly accessible without an account).
+
+We loaded the shapefile up at the top, but now let's look at it:
+
+```{r}
+head(ga_schools)
+```
+
+We have a bunch of columns like `GRADES` that has a list of what grades are included in the school, and `TOTAL`, which I'm guessing is the number of students. Let's map it!
+
+If we add a `geom_sf()` layer just for `ga_schools`, it'll plot a bunch of points:
+
+```{r plot-ga-schools-initial}
+ggplot() +
+  geom_sf(data = ga_schools)
+```
+
+One of these rows is wildly miscoded and ended up Indonesia! If you sort by the `geometry` column in RStudio, you'll see that it's most likely Allatoona High School in Cobb County (id = 22097). The coordinates are different from all the others, and it has no congressional district information. Let's remove it.
+
+```{r plot-ga-schools-fixed}
+ga_schools_fixed <- ga_schools %>% 
+  filter(ID != 22097)
+
+ggplot() +
+  geom_sf(data = ga_schools_fixed)
+```
+
+That's better. However, all we're plotting now are the points—we've lost the state and/or county boundaries. Let's include those:
+
+```{r plot-ga-schools-borders}
+ggplot() +
+  geom_sf(data = only_georgia_high) +
+  geom_sf(data = ga_schools_fixed) +
+  theme_void()
+```
+
+We're getting closer. We have some issues with overplotting, so let's shrink the points down and make them a little transparent:
+
+```{r plot-ga-schools-shrunk}
+ggplot() +
+  geom_sf(data = only_georgia_high) +
+  geom_sf(data = ga_schools_fixed, size = 0.5, alpha = 0.5) +
+  theme_void()
+```
+
+Neat. One last thing we can do is map the `TOTAL` column to the color aesthetic and color the points by how many students attend each school:
+
+```{r plot-ga-schools-color}
+ggplot() +
+  geom_sf(data = only_georgia_high) +
+  geom_sf(data = ga_schools_fixed, aes(color = TOTAL), size = 0.75, alpha = 0.5) +
+  scale_color_viridis_c() +
+  theme_void()
+```
+
+Most schools appear to be under 1,000 students, except for a cluster in Gwinnett County north of Atlanta. Its high schools have nearly 4,000 students each!
+
+```{r show-biggest-schools}
+ga_schools_fixed %>% 
+  select(COUNTY, SCHOOLNAME, TOTAL) %>% 
+  arrange(desc(TOTAL)) %>% 
+  head()
+```

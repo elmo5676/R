@@ -1,0 +1,97 @@
+---
+title: "Introduction to Geographic Information Systems (GIS) data with R"
+author:
+- name: Andrew Heiss, PhD
+  affiliation: Georgia State University
+  email: aheiss@gsu.edu
+date: "July 13, 2021"
+output: 
+  html_document: 
+    theme: journal
+    toc: true
+---
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = "center")
+```
+
+# Materials
+
+All the materials for today's workshop are accessible in [this RStudio.cloud workspace](https://rstudio.cloud/project/2703989). You'll be able to run R and RStudio directly from your browser and you don't need to install anything on your computer.
+
+You can also download a `.zip` file of all the materials here and run all the code on your own computer (after installing R and RStudio and these packages: `tidyverse, sf, tigris, tidygeocoder`)
+
+- [`gis-with-r.zip`](https://talks.andrewheiss.com/2021-gpl/gis-with-r.zip)
+
+# Slides
+
+Here are the slides for the different sections of today's workshop:
+
+- [0: Introduction](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/00_introduction.html) <small>([PDF](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/00_introduction.pdf))</small>
+- [1: Maps, truth, and data](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/01_maps-truth-data.html) <small>([PDF](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/01_maps-truth-data.pdf))</small>
+- [2a: Getting started with R and RStudio](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/02a_getting-started.html) <small>([PDF](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/02a_getting-started.pdf))</small>
+- [2b: Visualize data with ggplot2](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/02b_visualize-data.html) <small>([PDF](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/02b_visualize-data.pdf))</small>
+- [2c: Transform data with dplyr](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/02c_transform-data.html) <small>([PDF](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/02c_transform-data.pdf))</small>
+- [3: GIS in R with sf](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/03_sf.html) <small>([PDF](https://talks.andrewheiss.com/2021-gpl/02_gis-with-r/03_sf.pdf))</small>
+
+I've designed today's workshop to be accessible even if you've never used R before, but if you haven't, you might want to revisit some of the GPL workshops from last summer on [R and the tidyverse](https://www.youtube.com/watch?v=K9j1-9uJ6uk) and [data visualization](https://www.youtube.com/watch?v=mugJ0V3dQC8).
+
+
+# Shapefiles
+
+Shapefiles are special types of data that include information about geography, such as points (latitude, longitude), paths (a bunch of connected latitudes and longitudes) and areas (a bunch of connected latitudes and longitudes that form a complete shape). Nowadays, most government agencies provide shapefiles for their jurisdictions. For global mapping data, you can use the Natural Earth project. Here are some common places to find shapefiles:
+
+- [Natural Earth](https://www.naturalearthdata.com/)
+- [US Census Bureau](https://www.census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html)
+- [Georgia GIS Clearinghouse](https://data.georgiaspatial.org/) (requires a free account; the interface is *incredibly* clunky)
+- [Atlanta Regional Council](https://opendata.atlantaregional.com/)
+- [Fulton County GIS Portal](https://gisdata.fultoncountyga.gov/)
+- [City of Atlanta, Department of City Planning](https://dcp-coaplangis.opendata.arcgis.com/)
+
+
+# Projections and coordinate reference systems
+
+Projections matter a lot for maps. For instance, play around with these two websites:
+
+- ["The True Size Of…"](https://thetruesize.com/)
+- ["Projection comparison"](https://observablehq.com/@d3/projection-comparison)
+
+You can convert your geographic data between different coordinate systems (or projections)[^crs] fairly easily with **sf**. You can use `coord_sf(crs = st_crs("XXXX"))` to convert coordinate reference systems (CRS) as you plot, or use `st_transform()` to convert data frames to a different CRS.
+
+[^crs]: TECHNICALLY coordinate systems and projection systems [are different things](https://gis.stackexchange.com/a/149751/56265), but I'm not a geographer and I don't care that much about the nuance.
+
+There are standard indexes of more than 4,000 of these projections (!!!) at [epsg.io](https://epsg.io/). 
+
+**Super important**: When using these projections with `geom_sf()`, you need to specify both the projection catalog (ESRI or EPSG; [see here for the difference](https://gis.stackexchange.com/a/169211/56265)) and the projection number, separated by a colon (e.g. "`ESRI:54030`"). Fortunately [epsg.io](http://epsg.io/) makes this super easy: go to the epsg.io page for the projection you want to use and the page title will have the correct name. 
+
+Here are some common ones:
+
+- [ESRI:54002](http://epsg.io/54002): Equidistant cylindrical projection for the world[^gall-peters]
+- [EPSG:3395](http://epsg.io/3395): Mercator projection for the world
+- [ESRI:54008](http://epsg.io/54008): Sinusoidal projection for the world
+- [ESRI:54009](http://epsg.io/54009): Mollweide projection for the world
+- [ESRI:54030](http://epsg.io/54030): Robinson projection for the world (This is my favorite world projection.)
+- [EPSG:4326](http://epsg.io/4326): WGS 84: DOD GPS coordinates (standard −180 to 180 system)
+- [EPSG:4269](http://epsg.io/4269): NAD 83: Relatively common projection for North America
+- [ESRI:102003](https://epsg.io/102003): Albers projection specifically for the contiguous United States
+
+Alternatively, instead of using these index numbers, you can use any of the names listed [here](https://proj.org/operations/projections/index.html), such as:
+
+- `"+proj=merc"`: Mercator
+- `"+proj=robin"`: Robinson
+- `"+proj=moll"`: Mollweide 
+- `"+proj=aeqd"`: Azimuthal Equidistant
+- `"+proj=cass"`: Cassini-Soldner
+
+
+# Other resources
+
+There are lots of tutorials and free textbooks online about how to use the **sf** package to do GIS stuff with R. Here are some really helpful and interesting ones:
+
+- ["Drawing beautiful maps programmatically with R, sf and ggplot2"](https://r-spatial.org//r/2018/10/25/ggplot2-sf.html): This shows cool things like how to add a compass sign and a scale bar
+- ["Designing Map Cutouts with {sf} and {ggplot2}"](https://www.katiejolly.io/blog/2019-01-21/map-cutouts): This person made some fancy wall art using shapefiles and **sf**
+- [*Geocomputation with R*](https://bookdown.org/robinlovelace/geocompr/intro.html): A complete free textbook for using **sf** with R; shows more complex GIS calculations
+- [*An Introduction to Spatial Analysis and Mapping*](https://bookdown.org/lexcomber/brunsdoncomber2e/Ch5.html): All the code for another textbook for using **sf** with R; shows more complex GIS calculations
+- [GSU PMAP 8921: Data Visualization with R: Space](https://datavizs21.classes.andrewheiss.com/content/12-content/): This is a lecture and [complete example video and code](https://datavizs21.classes.andrewheiss.com/example/12-example/) from my online GSU course on data visualization.

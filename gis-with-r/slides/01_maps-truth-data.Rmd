@@ -1,0 +1,569 @@
+---
+title: "Maps, truth, and data"
+author: "Andrew Heiss"
+date: "July 13, 2021"
+output:
+  xaringan::moon_reader:
+    lib_dir: "libs"
+    chakra: "libs/remark-latest.min.js"
+    css: ["default", "css/ath-slides.css", "css/ath-inferno-fonts.css"]
+    seal: false
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      navigation:
+        scroll: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, 
+                      fig.retina = 3, fig.align = "center")
+```
+
+```{r packages-data, include=FALSE}
+library(tidyverse)
+library(sf)
+library(patchwork)
+library(glue)
+
+set.seed(1234)
+
+options("digits" = 2, "width" = 90)
+```
+
+```{r xaringanExtra, echo=FALSE}
+xaringanExtra::use_xaringan_extra(c("tile_view"))
+xaringanExtra::use_share_again()
+```
+
+class: center middle section-title section-title-4 animated fadeIn
+
+# Maps, truth,<br>and data
+
+---
+
+layout: true
+class: title title-4
+
+---
+
+# John Snow and 1854 cholera epidemic
+
+.pull-left.center[
+<figure>
+  <img src="img/01/800px-John_Snow.jpg" alt="John Snow" title="John Snow" width="60%">
+  <figcaption>This Jo(h)n Snow knows things</figcaption>
+</figure>
+]
+
+--
+
+.pull-left.center[
+.box-inv-4[10% of the population of Soho died in a week (!!)]
+
+.box-inv-4[Miasma theory said it was because the air was bad]
+]
+
+???
+
+https://en.wikipedia.org/wiki/John_Snow
+
+---
+
+layout: false
+class: bg-full
+background-image: url("img/01/1092px-Snow-cholera-map-1.jpg")
+
+???
+
+https://commons.wikimedia.org/wiki/File:Snow-cholera-map-1.jpg
+
+---
+
+layout: true
+class: title title-4
+
+---
+
+# The Broad Street pump
+
+.pull-left-wide.center[
+<figure>
+  <img src="img/01/Snow-cholera-map.jpg" alt="John Snow's 1854 cholera map" title="John Snow's 1854 cholera map" width="68%">
+</figure>
+]
+
+.pull-left-narrow[
+<figure>
+  <img src="img/01/John_Snow_memorial_and_pub.jpg" alt="The Broad Street Pump" title="The Broad Street Pump" width="100%">
+</figure>
+]
+
+???
+
+https://nl.wikibooks.org/wiki/Bestand:Snow-cholera-map.jpg
+
+https://upload.wikimedia.org/wikipedia/commons/c/cb/John_Snow_memorial_and_pub.jpg
+
+---
+
+# Outright lies
+
+.pull-left.center[
+<figure>
+  <img src="img/01/wp-bad-map.jpg" alt="Fake map" title="Fake map" width="90%">
+</figure>
+]
+
+--
+
+.pull-right.center[
+<figure>
+  <img src="img/01/bad-map-meme.png" alt="Fake map again" title="Fake map again" width="70%">
+</figure>
+]
+
+???
+
+Bottom map doesn't even show crime rates—it's the results from the 2012 presidential election
+
+https://www.washingtonpost.com/news/fact-checker/wp/2016/11/16/no-the-viral-image-of-2016-election-results-and-2013-crime-rates-is-not-real/
+
+https://me.me/i/electoral-map-2016-election-crime-rate-milo-democrats-are-as-3983235
+
+---
+
+# Fake maps and junk maps
+
+.pull-left.center[
+<figure>
+  <img src="img/01/bot-designed-maps.png" alt="Fast Company on bot-designed maps" title="Fast Company on bot-designed maps" width="80%">
+  <figcaption><a href="https://www.fastcompany.com/90230916/the-next-great-fake-news-threat-bot-designed-maps" target="_blank">“The next great fake news threat? Bot-designed maps”</a></figcaption>
+</figure>
+]
+
+--
+
+.pull-right.center[
+<figure>
+  <img src="img/01/candy-map.jpg" alt="Favorite candy by state" title="Favorite candy by state" width="100%">
+</figure>
+]
+
+???
+
+https://www.fastcompany.com/90230916/the-next-great-fake-news-threat-bot-designed-maps
+
+https://www.reddit.com/r/funny/comments/dos6zx/finally_an_accurate_candy_map/
+
+---
+
+# Points can be useless
+
+.center[
+<figure>
+  <img src="img/01/heatmap.png" alt="xkcd population maps" title="xkcd population maps" width="42%">
+</figure>
+]
+
+???
+
+https://xkcd.com/1138/
+
+---
+
+# Choropleths can be great
+
+.center[
+<figure>
+  <img src="img/01/fall-foliage-2019.png" alt="2019 Fall foliage prediction map" title="2019 Fall foliage prediction map" width="65%">
+  <figcaption><a href="https://smokymountains.com/fall-foliage-map/" target="_blank">Smoky Mountains 2019 Fall Foliage Prediction Map</a></figcaption>
+</figure>
+]
+
+???
+
+https://smokymountains.com/fall-foliage-map/
+
+---
+
+# Choropleths can distort
+
+.center[
+<figure>
+  <img src="img/01/white-house-framed-map.png" alt="White House framed map of election results" title="White House framed map of election results" width="37%">
+</figure>
+]
+
+???
+
+https://thehill.com/blogs/blog-briefing-room/332927-trump-will-hang-map-of-2016-election-results-in-the-white-house
+
+---
+
+# Land doesn't vote
+
+.center[
+<video controls>
+  <source src="img/01/election-map.mp4" type="video/mp4">
+</video>
+]
+
+???
+
+https://demcastusa.com/2019/11/11/land-doesnt-vote-people-do-this-electoral-map-tells-the-real-story/
+
+[Cryptic command](https://stackoverflow.com/questions/31781238/using-ffmpeg-to-convert-gif-to-mp4-output-doesnt-play-on-android) to convert gif to mp4: 
+
+```text
+ffmpeg -r 30 -i input.gif -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" out.mp4
+```
+
+---
+
+# Cartograms
+
+&nbsp;
+
+.pull-left-3.center[
+<figure>
+  <img src="img/01/countymap3070384.png" alt="2016 map by county" title="2016 map by county" width="100%">
+</figure>
+]
+
+.pull-middle-3.center[
+<figure>
+  <img src="img/01/538-hexagon-cartogram.png" alt="FiveThirtyEight hex cartogram" title="FiveThirtyEight hex cartogram" width="100%">
+</figure>
+]
+
+.pull-right-3.center[
+<figure>
+  <img src="img/01/countycart30701024.png" alt="2016 cartogram by county" title="2016 cartogram by county" width="100%">
+</figure>
+]
+
+???
+
+http://metrocosm.com/election-2016-map-3d/
+
+---
+
+layout: false
+class: bg-full
+background-image: url("img/01/Election2015_WinnerChangeMaps.jpg")
+
+???
+
+http://www.viewsoftheworld.net/?p=4570
+
+---
+
+.center[
+<figure>
+  <img src="img/01/2016_election_map_large.png" alt="xkcd 2016 election map" title="xkcd 2016 election map" width="70%">
+</figure>
+]
+
+???
+
+https://xkcd.com/1939/
+
+---
+
+layout: true
+class: title title-4
+
+---
+
+# Projections
+
+.box-inv-4.medium[[Animated world projections](https://bl.ocks.org/mbostock/raw/3711652/)]
+
+???
+
+Disable my video so OBS is happy
+
+---
+
+# World projections
+
+```{r projections, echo=FALSE, fig.width=8, fig.height=3.75, out.width="100%"}
+world_shapes <- read_sf("data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp") %>% 
+  filter(ISO_A3 != "ATA")
+
+base_map <- ggplot() + 
+  geom_sf(data = world_shapes, fill = "#B2B1F9", size = 0.1, color = "#0D0887") +
+  theme_void(base_family = "Fira Sans Condensed") + 
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "lines"),
+        plot.title = element_text(margin = margin(b = 3), face = "bold"),
+        plot.caption = element_text(family = "Consolas", color = "grey50"))
+
+# Longitude/latitude
+map_lat_lon <- base_map +
+  coord_sf(crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_def") +
+  labs(title = "Longitude-latitude",
+       caption = 'crs = "+proj=longlat +ellps=WGS84"')
+
+# Robinson
+map_robinson <- base_map +
+  coord_sf(crs = "+proj=robin") +
+  # coord_sf(crs = 54030, datum = NA) +  # Robinson
+  labs(title = "Robinson",
+       caption = 'crs = "+proj=robin"')
+
+# Mercator (ew)
+map_mercator <- base_map +
+  coord_sf(crs = "+proj=merc") +
+  # coord_sf(crs = 54004, datum = NA) +  # Mercator
+  labs(title = "Mercator",
+       caption = 'crs = "+proj=merc"')
+
+# Gall Peters
+map_gall_peters <- base_map +
+  coord_sf(crs = st_crs("ESRI:54002"), datum = NA) +  # Gall Peters / Equidistant cylindrical
+  labs(title = "Gall-Peters",
+       caption = 'crs = "ESRI:54002"')
+
+(map_lat_lon / map_mercator) | (map_gall_peters / map_robinson) 
+
+# Equal earth
+# base_map +
+#   coord_sf(crs = "+proj=eqearth +wktext") +  # Equal earth 
+#   labs(title = "Equal Earth",
+#        caption = 'crs = "+proj=eqearth +wktext"')
+```
+
+---
+
+# US projections
+
+```{r us-projections, echo=FALSE, fig.width=8, fig.height=3.75, out.width="100%"}
+us_states <- read_sf("data/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+
+states_48 <- us_states %>% 
+  filter(!(STUSPS %in% c("HI", "AK", "PR")))
+
+map_nad83 <- ggplot() +
+  geom_sf(data = states_48, fill = "#B2B1F9", size = 0.25, color = "#0D0887") +
+  labs(title = "NAD83",
+       caption = 'crs = "EPSG:4269"') +
+  coord_sf(crs = st_crs("EPSG:4269"), datum = NA) +
+  theme_void(base_family = "Fira Sans Condensed") + 
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "lines"),
+        plot.title = element_text(margin = margin(b = 3), face = "bold"),
+        plot.caption = element_text(family = "Consolas", color = "grey50"))
+
+map_albers <- ggplot() +
+  geom_sf(data = states_48, fill = "#B2B1F9", size = 0.25, color = "#0D0887") +
+  labs(title = "Albers",
+       caption = 'crs = "ESRI:102003"') +
+  coord_sf(crs = st_crs("ESRI:102003"), datum = NA) +
+  theme_void(base_family = "Fira Sans Condensed") + 
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "lines"),
+        plot.title = element_text(margin = margin(b = 3), face = "bold"),
+        plot.caption = element_text(family = "Consolas", color = "grey50"))
+
+map_nad83 | map_albers
+```
+
+---
+
+# Finding projection codes
+
+.box-inv-4[[epsg.io](https://epsg.io/)]
+
+.box-inv-4[[proj.org](https://proj.org/operations/projections/index.html)]
+
+--
+
+.box-inv-4[Most common ones listed on the<br>[workshop website](/example/12-example/)]
+
+--
+
+.box-inv-4.small[[This](https://www.earthdatascience.org/courses/earth-analytics/spatial-data-r/understand-epsg-wkt-and-other-crs-definition-file-types/) is an excellent overview of how this all works]
+
+.box-inv-4.small[And [this](https://web.archive.org/web/20200225021219/https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/OverviewCoordinateReferenceSystems.pdf) is a really really helpful overview of all these moving parts]
+
+---
+
+# Which projection is best?
+
+--
+
+.box-inv-4.medium[None of them]
+
+--
+
+.box-4[There are no good or bad projections]
+
+--
+
+.box-4[There are appropriate and<br>inappropriate projections]
+
+--
+
+.box-inv-4.small[(but also ew mercator)]
+
+---
+
+layout: false
+class: center middle section-title section-title-3 animated fadeIn
+
+# Putting data on maps
+
+---
+
+layout: true
+class: title title-3
+
+---
+
+# Maps with lines
+
+.center[
+<figure>
+  <img src="img/01/CA_Migration_v2_101-01.png" alt="Net migration between California and other states" title="Net migration between California and other states" width="55%">
+  <figcaption><a href="https://www.census.gov/dataviz/visualizations/051/" target="_blank">US Census Bureau: Net migration between California and other states</a></figcaption>
+</figure>
+]
+
+???
+
+https://www.census.gov/dataviz/visualizations/051/
+
+---
+
+# Maps with lines
+
+.center[
+<figure>
+  <img src="img/01/wind-map.png" alt="hint.fm wind map from Hurricane Sandy in 2012" title="hint.fm wind map from Hurricane Sandy in 2012" width="85%">
+  <figcaption><a href="http://hint.fm/wind/index.html" target="_blank">hint.fm Live Wind Map</a></figcaption>
+</figure>
+]
+
+???
+
+http://hint.fm/wind/index.html
+
+---
+
+layout: false
+class: bg-full
+background-image: url("img/01/streams-lakes-bw-100-w-01.jpg")
+
+???
+
+https://kieranhealy.org/prints/rivers/
+
+---
+
+layout: true
+class: title title-3
+
+---
+
+# Maps with points
+
+.center[
+<figure>
+  <img src="img/01/7840356344_c8dda52c31_h.jpg" alt="Every hurricane since 1851, by IDV solutions" title="Every hurricane since 1851, by IDV solutions" width="70%">
+  <figcaption><a href="https://www.flickr.com/photos/idvsolutions/7840356344/" target="_blank">Every hurricane since 1851, by IDV solutions</a></figcaption>
+</figure>
+]
+
+???
+
+https://www.flickr.com/photos/idvsolutions/7840356344/
+
+---
+
+# Maps with points
+
+.center[
+<figure>
+  <img src="img/01/nyt-la-vaccinations.png" alt="NYT LA vaccinations" title="NYT LA vaccinations" width="90%">
+  <figcaption><a href="https://www.nytimes.com/interactive/2015/02/06/us/california-measles-vaccines-map.html" target="_blank">The New York Times, "Vaccination Rates for Every Kindergarten in California</a></figcaption>
+</figure>
+]
+
+???
+
+https://www.nytimes.com/interactive/2015/02/06/us/california-measles-vaccines-map.html
+
+---
+
+# Maps with points
+
+.center[
+<figure>
+  <img src="img/01/dc-photo-locations-small.jpg" alt="DC photo locations by locals and tourists" title="DC photo locations by locals and tourists" width="48%">
+  <figcaption><a href="https://www.flickr.com/photos/walkingsf/4672195208/in/album-72157624209158632/" target="_blank">Locals vs. tourists in DC (blue = locals; red = tourists; yellow = unknown)</a></figcaption>
+</figure>
+]
+
+???
+
+https://www.flickr.com/photos/walkingsf/4672195208/in/album-72157624209158632/
+
+---
+
+# Voronoi maps
+
+.pull-left.center[
+<figure>
+  <img src="img/01/voronoi-states.png" alt="Voronoi state boundaries" title="Voronoi state boundaries" width="100%">
+  <figcaption><a href="http://vizual-statistix.tumblr.com/post/48625446909/these-are-voronoi-maps-of-the-contiguous-usa" target="_blank">Voroni state boundaries, by Seth Kadish</a></figcaption>
+</figure>
+]
+
+--
+
+.pull-right.center[
+<figure>
+  <img src="img/01/voronoi-nba.png" alt="Voronoi state boundaries" title="Voronoi state boundaries" width="100%">
+  <figcaption><a href="https://www.reddit.com/r/nba/comments/27got5/which_team_is_closest_to_you_a_voronoi_diagram/" target="_blank">Closest NBA teams</a></figcaption>
+</figure>
+]
+
+???
+
+http://vizual-statistix.tumblr.com/post/48625446909/these-are-voronoi-maps-of-the-contiguous-usa
+
+https://www.reddit.com/r/nba/comments/27got5/which_team_is_closest_to_you_a_voronoi_diagram/
+
+---
+
+# Maps with shapes
+
+.center[
+<figure>
+  <img src="img/01/nyt-aca-map.png" alt="NYT: States Where Insured Could Renew Plans Before Change by Obama" title="NYT: States Where Insured Could Renew Plans Before Change by Obama" width="70%">
+</figure>
+]
+
+???
+
+https://archive.nytimes.com/www.nytimes.com/interactive/2013/11/20/us/which-states-will-allow-old-health-policies-to-be-renewed.html
+
+---
+
+# Small multiples that look like maps
+
+.center[
+<figure>
+  <img src="img/01/geofacet.png" alt="geofacet package" title="geofacet package" width="65%">
+  <figcaption><code>facet_geo()</code> in the <a href="https://hafen.github.io/geofacet/" target="_blank"><strong>geofacet</strong> package</a></figcaption>
+</figure>
+]
+
+
+```{r echo=FALSE, include=FALSE, eval=FALSE}
+pagedown::chrome_print(here::here("slides", "01_maps-truth-data.html"), 
+                       output = here::here("slides", "01_maps-truth-data.pdf"))
+```

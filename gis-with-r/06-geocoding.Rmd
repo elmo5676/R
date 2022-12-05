@@ -1,0 +1,194 @@
+---
+title: "Geocoding data"
+output: html_document
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(sf)
+library(tidygeocoder)
+
+# Download "Admin 0 – Countries" from
+# https://www.naturalearthdata.com/downloads/110m-cultural-vectors/
+world_map <- read_sf("data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
+
+world_sans_antarctica <- world_map %>% 
+  filter(ISO_A3 != "ATA")
+
+# Download cb_2018_us_state_20m.zip under "States" from
+# https://www.census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html
+us_states <- read_sf("data/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+
+lower_48 <- us_states %>% 
+  filter(!(NAME %in% c("Alaska", "Hawaii", "Puerto Rico")))
+
+# Download "Admin 1 – States, Provinces" from
+# https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+us_states_hires <- read_sf("data/ne_10m_admin_1_states_provinces/ne_10m_admin_1_states_provinces.shp")
+
+only_georgia_high <- us_states_hires %>% 
+  filter(iso_3166_2 == "US-GA")
+```
+
+## Making your own geoencoded data
+
+Plotting shapefiles with `geom_sf()` is magical because **sf** deals with all of the projection issues for us automatically and it figures out how to plot all the latitude and longitude data for us automatically. But lots of data *doesn't* some as shapefiles. You'll often come across datasets with columns for latitude and longitude, but those are just numbers and won't work with **sf** (i.e. you can't plot them, change their projections, find if they intersect with other things, etc.)
+
+Fortunately, if we have latitude and longitude information, we can make our own `geometry` column!
+
+Let's say we want to mark some cities on our map of Georgia. We can make a mini dataset using `tribble()` (or you could make this little table in Excel and load it into R that way too). I found these points from Google Maps: right click anywhere in Google Maps, select "What's here?", and you'll see the exact coordinates for that spot.
+
+```{r mini-cities}
+ga_cities <- tribble(
+  ~city, ~lat, ~long,
+  "Atlanta", 33.748955, -84.388099,
+  "Athens", 33.950794, -83.358884,
+  "Savannah", 32.113192, -81.089350
+)
+
+ga_cities
+```
+
+This is just a normal dataset, and the `lat` and `long` columns are just numbers. R doesn't know that those are actually geographic coordinates.
+
+We can convert those two columns to the magic `geometry` column with the `st_as_sf()` function. We have to define two things in the function: which coordinates are the longitude and latitude, and what CRS the coordinates are using. Google Maps uses [EPSG:4326, or the GPS system](http://epsg.io/4326), so we specify that:
+
+```{r mini-cities-convert}
+ga_cities_geometry <- ga_cities %>% 
+  st_as_sf(coords = c("long", "lat"), crs = st_crs("EPSG:4326"))
+
+ga_cities_geometry
+```
+
+The longitude and latitude columns are gone now, and we have a single magical `geometry` column. That means we can plot it with `geom_sf()`:
+
+```{r ga-with-cities}
+ggplot() +
+  geom_sf(data = only_georgia_high, fill = "purple") +
+  geom_sf(data = ga_cities_geometry, size = 3) +
+  theme_void()
+```
+
+We can use `geom_sf_label()` (or `geom_sf_text()`) to add labels in the correct locations too. It will give you a warning, but you can ignore it—again, it's complaining that the positioning might not be 100% accurate because of issues related to taking a globe and flattening it. It's fine.
+
+```{r ga-with-cities-text, warning=FALSE, fig.width=10, fig.height=6}
+ggplot() +
+  geom_sf(data = only_georgia_high, fill = "purple") +
+  geom_sf(data = ga_cities_geometry, size = 3) +
+  geom_sf_label(data = ga_cities_geometry, aes(label = city),
+                nudge_y = 0.2) +
+  theme_void()
+```
+
+### Your turn
+
+Choose a state, make a mini dataset with a few cities or locations in it, get their coordinates from Google Maps, and plot those cities in the state. This will be tricky!
+
+INSERT CHUNK HERE
+
+
+## Automatic geoencoding by address
+
+Using `st_as_sf()` is neat when you have latitude and longitude data already, but what if you have a list of addresses or cities instead, with no fancy geographic information? It's easy enough to right click on Google Maps, but you don't really want to do that hundreds of times for large-scale data.
+
+Fortunately there are a bunch of different online geoencoding services that return GIS data for addresses and locations that you feed them, like magic. 
+
+The easiest way to use any of these services is to use the **tidygeocoder** package, which connects with all these different free and paid services (run `?geo` in R for complete details):
+
+- `"osm"`: OpenStreetMap through [Nominatim](https://nominatim.org/). **FREE**.
+- `"census"`: [US Census](https://geocoding.geo.census.gov/). Geographic coverage is limited to the United States. **FREE**.
+- `"arcgis"`: [ArcGIS](https://developers.arcgis.com/rest/geocode/api-reference/overview-world-geocoding-service.htm). **FREE** and paid.
+- `"geocodio"`: [Geocodio](https://www.geocod.io/). Geographic coverage is limited to the United States and Canada. An API key must be stored in `"GEOCODIO_API_KEY"`.
+- `"iq"`: [Location IQ](https://locationiq.com/). An API key must be stored in `"LOCATIONIQ_API_KEY"`.
+- `"google"`: [Google](https://developers.google.com/maps/documentation/geocoding/overview). An API key must be stored in `"GOOGLEGEOCODE_API_KEY"`.
+- `"opencage"`: [OpenCage](https://opencagedata.com/). An API key must be stored in `"OPENCAGE_KEY"`.
+- `"mapbox"`: [Mapbox](https://docs.mapbox.com/api/search/). An API key must be stored in `"MAPBOX_API_KEY"`.
+- `"here"`: [HERE](https://developer.here.com/products/geocoding-and-search). An API key must be stored in `"HERE_API_KEY"`.
+- `"tomtom"`: [TomTom](https://developer.tomtom.com/search-api/search-api-documentation/geocoding). An API key must be stored in `"TOMTOM_API_KEY"`.
+- `"mapquest"`: [MapQuest](https://developer.mapquest.com/documentation/geocoding-api/). An API key must be stored in `"MAPQUEST_API_KEY"`.
+- `"bing"`: [Bing](https://docs.microsoft.com/en-us/bingmaps/rest-services/locations/). An API key must be stored in `"BINGMAPS_API_KEY"`.
+
+Not all services work equally well, and the free ones have rate limits (like, don't try to geocode a million rows of data with the US Census), so you'll have to play around with different services. You can also provide a list of services and **tidygeocoder** will cascade through them—if it can't geocode an address with OpenStreetMap, it can move on to the Census, then ArcGIS, and so on. You need to set the `cascade_order` argument in `geocode()` for this to work.
+
+Let's make a little dataset with some addresses to geocode. Again, we're making this with `tribble()` here in R, but this could also be part of an Excel or CSV file that you load into R.
+
+```{r}
+some_addresses <- tribble(
+  ~name,             ~address,
+  "The White House", "1600 Pennsylvania Ave NW, Washington, DC",
+  "The Andrew Young School of Public Policy", "14 Marietta Street NW, Atlanta, GA 30303"
+)
+some_addresses
+```
+
+To geocode these addresses, we can feed this data into `geocode()` and tell it to use the `address` column. We'll use the Census geocoding system for fun (surely they know where the White House is):
+
+```{r}
+geocoded_addresses <- some_addresses %>% 
+  geocode(address, method = "census")
+geocoded_addresses
+```
+
+It worked!
+
+Those are just numbers, though, and not the magical `geometry` column, so we need to use `st_as_sf()` to convert them to actual GIS data.
+
+```{r}
+addresses_geometry <- geocoded_addresses %>% 
+  st_as_sf(coords = c("long", "lat"), crs = st_crs("EPSG:4326"))
+addresses_geometry
+```
+
+Let's plot these on a US map:
+
+```{r}
+ggplot() + 
+  geom_sf(data = lower_48, fill = "darkblue", color = "white", size = 0.25) +
+  geom_sf(data = addresses_geometry, size = 5, color = "yellow") +
+  # Albers uses meters as its unit of measurement, so we need to nudge these
+  # labels up by a lot. I only settled on 200,000 here after a bunch of trial
+  # and error, adding single zeroes and rerunning the plot until the labels
+  # moved. 200,000 meters = 124.27 miles
+  geom_sf_label(data = addresses_geometry, aes(label = name),
+                size = 5, fill = "yellow", nudge_y = 200000) + 
+  coord_sf(crs = st_crs("ESRI:102003")) +  # Albers
+  theme_void()
+```
+
+
+## Plotting other data on maps
+
+So far we've just plotted whatever data the shapefile creators decided to include and publish in their data. But what if you want to visualize some other variable on a map? We can do this by combining our shapefile data with any other kind of data, as long as the two have a shared column. For instance, we can make a choropleth map of life expectancy with data from the World Bank.
+
+First let's load this data I collected from the World Bank's open data portal (using the **WDI** R package; [see here for the code](https://datavizs21.classes.andrewheiss.com/example/12-example/#plotting-other-data-on-maps) if you're interested)
+
+```{r message=FALSE}
+world_bank <- read_csv("data/world_bank_life_expectancy.csv")
+```
+
+Next we need to merge this tiny dataset into the `world_map_sans_antarctica` shapefile data we were using earlier. To do this we'll use a function named `left_join()`. We feed two data frames into `left_join()`, and R will keep all the rows from the first and include all the columns from both the first and the second wherever the two datasets match with one specific column. That's wordy and weird—[stare at this animation here](https://github.com/gadenbuie/tidyexplain#left-join) for a few seconds to see what's really going to happen. We're essentially going to append the World Bank data to the end of the world shapefiles and line up rows that have matching ISO3 codes.
+
+```{r combine-map-wdi}
+world_map_with_life_expectancy <- world_sans_antarctica %>% 
+  left_join(world_bank, by = "ISO_A3")
+```
+
+If you look at this dataset in RStudio now and look at the last column, you'll see the WDI life expectancy right next to the magic `geometry` column.
+
+Now that we have a column for life expectancy, we can map it to the fill aesthetic and fill each country by 2015 life expectancy:
+
+```{r world-life-exp-2015, fig.width=10, fig.height=6}
+ggplot() + 
+  geom_sf(data = world_map_with_life_expectancy, 
+          aes(fill = life_expectancy),
+          size = 0.25) +
+  coord_sf(crs = st_crs("ESRI:54030")) +  # Robinson
+  scale_fill_viridis_c(option = "viridis") +
+  labs(fill = "Life expectancy") +
+  theme_void() +
+  theme(legend.position = "bottom")
+```
+
+Voila! Global life expectancy in 2015!
+
+This process works for combining any kind of data with shape files. If you want to plot results from the 2020 US presidential election, for instance, you'll need a dataset with a column with state abbreviations or names or country ID numbers that you can join into the US Census shapefile (i.e. `us_states` or `us_counties`)
